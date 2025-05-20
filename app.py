@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import datetime
 import pandas as pd
+import pytz # Import the pytz library for timezone conversion
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -25,7 +26,7 @@ def create_tables():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS grievances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, -- Stored as UTC by SQLite default
             title TEXT NOT NULL,
             details TEXT,
             category TEXT,
@@ -56,10 +57,41 @@ def add_grievance(title, details, category, severity, target_date):
 def get_all_grievances():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, strftime('%Y-%m-%d %H:%M', timestamp) as submitted_on, title, details, category, severity, status, resolution_notes, target_resolution_date FROM grievances ORDER BY timestamp DESC")
-    grievances = cursor.fetchall()
+    # Fetch the raw timestamp string
+    cursor.execute("SELECT id, timestamp, title, details, category, severity, status, resolution_notes, target_resolution_date FROM grievances ORDER BY timestamp DESC")
+    grievances_raw = cursor.fetchall()
     conn.close()
-    return grievances
+
+    processed_grievances = []
+    ist_timezone = pytz.timezone('Asia/Kolkata')
+    utc_timezone = pytz.utc
+
+    for row_raw in grievances_raw:
+        row = dict(row_raw) # Convert sqlite3.Row to dict for easier manipulation
+        
+        # Convert timestamp from UTC to IST
+        utc_dt_str = row['timestamp'] # This is a string like 'YYYY-MM-DD HH:MM:SS'
+        
+        # Parse the string to a naive datetime object
+        naive_dt = datetime.datetime.strptime(utc_dt_str, '%Y-%m-%d %H:%M:%S')
+        
+        # Localize the naive datetime object to UTC
+        utc_dt = utc_timezone.localize(naive_dt)
+        
+        # Convert to IST
+        ist_dt = utc_dt.astimezone(ist_timezone)
+        
+        # Format for display
+        row['submitted_on'] = ist_dt.strftime('%Y-%m-%d %I:%M %p IST') # e.g., 2025-05-20 01:50 PM IST
+        
+        # Remove the original timestamp if you don't need it directly in the DataFrame later
+        # del row['timestamp'] 
+        # Or keep it if you want the original UTC string for some reason, but 'submitted_on' will be used for display
+
+        processed_grievances.append(row)
+        
+    return processed_grievances
+
 
 def update_grievance_status(grievance_id, new_status, resolution_notes=""):
     conn = get_db_connection()
@@ -165,8 +197,6 @@ st.markdown("""
 
 
     /* --- FORM WIDGET LABEL STYLES (Main Content) - REVISED --- */
-    /* Target the label element which usually has data-testid="stWidgetLabel" 
-       and is a child of the widget's main div (e.g., data-testid="stTextInput") */
     div[data-testid="stTextInput"] label[data-testid="stWidgetLabel"],
     div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"],
     div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"],
@@ -174,12 +204,10 @@ st.markdown("""
         color: var(--text-dark) !important; 
         font-weight: 500 !important;
         font-size: 0.95rem !important;
-        margin-bottom: 0.3rem !important; /* Increased spacing a bit */
-        padding-top: 0.1rem; /* Add a little top padding */
+        margin-bottom: 0.3rem !important; 
+        padding-top: 0.1rem; 
         display: block !important; 
     }
-
-    /* In case the actual text is nested inside a div/span within the label */
     div[data-testid="stTextInput"] label[data-testid="stWidgetLabel"] div,
     div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"] div,
     div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"] div,
@@ -188,7 +216,7 @@ st.markdown("""
     div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"] span,
     div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"] span,
     div[data-testid="stSelectbox"] label[data-testid="stWidgetLabel"] span {
-        color: var(--text-dark) !important; /* Force dark text */
+        color: var(--text-dark) !important; 
     }
 
 
@@ -410,18 +438,21 @@ elif app_mode == "📝 View & Manage Grievances":
     if not grievances:
         st.info("No love notes (grievances) yet! Our hearts are in perfect sync. 🥰 Or, feel free to share if something comes up, my dear!")
     else:
-        df = pd.DataFrame(grievances, columns=['ID', 'Submitted On', 'Title', 'Details', 'Category', 'Severity', 'Status', 'Resolution Notes', 'Target Date'])
+        # Convert list of dicts (from get_all_grievances) to DataFrame
+        df = pd.DataFrame(grievances) 
         
         st.subheader("All Our Love Notes:") 
 
+        # Iterate over DataFrame rows
         for index, row in df.iterrows():
-            expander_title = f"{row['Status']} - **{row['Title']}** (Severity: {row['Severity']}) - Submitted: {row['Submitted On']}"
+            # Access columns as dictionary keys or Series attributes
+            expander_title = f"{row['status']} - **{row['title']}** (Severity: {row['severity']}) - Submitted: {row['submitted_on']}"
             with st.expander(expander_title): 
-                st.markdown(f"**Category:** {row['Category']}")
-                st.markdown(f"**Details:**\n\n{row['Details']}")
-                st.markdown(f"**Target Resolution Date:** {row['Target Date']}")
-                st.markdown(f"**Current Status:** {row['Status']}")
-                current_resolution_notes = row['Resolution Notes'] if row['Resolution Notes'] else ""
+                st.markdown(f"**Category:** {row['category']}")
+                st.markdown(f"**Details:**\n\n{row['details']}")
+                st.markdown(f"**Target Resolution Date:** {row['target_resolution_date']}")
+                st.markdown(f"**Current Status:** {row['status']}")
+                current_resolution_notes = row['resolution_notes'] if pd.notna(row['resolution_notes']) else "" # Handle None/NaN
                 
                 st.markdown("---")
                 st.markdown("#### Update This Note, My Love:") 
@@ -430,7 +461,7 @@ elif app_mode == "📝 View & Manage Grievances":
                 with col1:
                     status_options = ["💖 Open", "💬 We're Talking", "🛠️ Working on it", "✅ Resolved with Love!", "⏳ Pending Apology Cuddles"]
                     try:
-                        current_status_index = status_options.index(row['Status'])
+                        current_status_index = status_options.index(row['status'])
                     except ValueError:
                         current_status_index = 0 
 
@@ -438,45 +469,52 @@ elif app_mode == "📝 View & Manage Grievances":
                         "Update Status:", 
                         status_options,
                         index=current_status_index,
-                        key=f"status_{row['ID']}"
+                        key=f"status_{row['id']}" # Use 'id' from the row
                     )
                     resolution_notes_update = st.text_area(
                         "My Thoughts/Our Resolution:", 
                         value=current_resolution_notes,
-                        key=f"notes_{row['ID']}",
+                        key=f"notes_{row['id']}", # Use 'id' from the row
                         placeholder="How I'm making it better / Our beautiful resolution...",
                         height=100
                     )
                 
                 with col2:
                     st.markdown("<br>", unsafe_allow_html=True) 
-                    if st.button("Save Update 💖", key=f"update_{row['ID']}", use_container_width=True):
-                        update_grievance_status(row['ID'], new_status, resolution_notes_update)
-                        st.success(f"Note '{row['Title']}' updated! We're amazing together! 🎉")
+                    if st.button("Save Update 💖", key=f"update_{row['id']}", use_container_width=True): # Use 'id'
+                        update_grievance_status(row['id'], new_status, resolution_notes_update) # Use 'id'
+                        st.success(f"Note '{row['title']}' updated! We're amazing together! 🎉")
                         st.rerun() 
 
                     st.markdown("<br>", unsafe_allow_html=True) 
-                    if st.button("Delete Note 🗑️", key=f"delete_{row['ID']}", type="secondary", use_container_width=True):
-                        delete_grievance(row['ID'])
-                        st.warning(f"Note '{row['Title']}' deleted. Hope it was resolved with oceans of love! ❤️")
+                    if st.button("Delete Note 🗑️", key=f"delete_{row['id']}", type="secondary", use_container_width=True): # Use 'id'
+                        delete_grievance(row['id']) # Use 'id'
+                        st.warning(f"Note '{row['title']}' deleted. Hope it was resolved with oceans of love! ❤️")
                         st.rerun()
 
 elif app_mode == "📊 Our Love Stats":
     st.header("📊 Our Love Stats Dashboard") 
     st.markdown("A little peek at how wonderfully we're growing, together. Every step forward is a testament to our love! 💑")
 
-    grievances = get_all_grievances()
-    if not grievances: 
+    grievances_data = get_all_grievances() # Renamed to avoid conflict
+    if not grievances_data: 
         st.info("No grievances submitted yet to show any stats. Our love story is just beginning! 🕊️")
     else:
-        df = pd.DataFrame(grievances, columns=['ID', 'Submitted On', 'Title', 'Details', 'Category', 'Severity', 'Status', 'Resolution Notes', 'Target Date'])
+        df_stats = pd.DataFrame(grievances_data) # Use a different df name for clarity
 
-        total_grievances = len(df)
+        total_grievances = len(df_stats)
         all_statuses = ["💖 Open", "💬 We're Talking", "🛠️ Working on it", "✅ Resolved with Love!", "⏳ Pending Apology Cuddles"]
-        status_counts = df['Status'].value_counts().reindex(all_statuses, fill_value=0)
-        
-        resolved_grievances = status_counts.get("✅ Resolved with Love!", 0)
-        ongoing_conversations = status_counts.loc[status_counts.index != "✅ Resolved with Love!"].sum()
+        # Ensure 'status' column exists before using it
+        if 'status' in df_stats.columns:
+            status_counts = df_stats['status'].value_counts().reindex(all_statuses, fill_value=0)
+            resolved_grievances = status_counts.get("✅ Resolved with Love!", 0)
+            ongoing_conversations = status_counts.loc[status_counts.index != "✅ Resolved with Love!"].sum()
+        else: # Handle case where 'status' column might be missing (e.g., if DB schema changed or data is malformed)
+            status_counts = pd.Series(0, index=all_statuses) # Empty series with correct index
+            resolved_grievances = 0
+            ongoing_conversations = 0
+            st.warning("Could not find status data for grievances. Please check database.")
+
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Love Notes 💌", total_grievances)
@@ -493,8 +531,8 @@ elif app_mode == "📊 Our Love Stats":
 
         st.markdown("---")
         st.subheader("Category Insights:") 
-        if 'Category' in df.columns and not df['Category'].dropna().empty:
-            category_counts = df['Category'].value_counts()
+        if 'category' in df_stats.columns and not df_stats['category'].dropna().empty: # Use lowercase 'category'
+            category_counts = df_stats['category'].value_counts() # Use lowercase 'category'
             if not category_counts.empty:
                  st.bar_chart(category_counts, color="#FFC0CB") # Direct Hex for --accent-pink-light
             else: 
@@ -504,4 +542,4 @@ elif app_mode == "📊 Our Love Stats":
 
 # --- Footer ---
 st.markdown("---")
-st.markdown("<div class='footer-text'><p>Remember Sai Keerthi, communication is the melody of our happy hearts. I love you more each day! ❤️,Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='footer-text'><p>Remember Sai Keerth, communication is the melody of our happy hearts. I love you more each day! ❤️,Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
