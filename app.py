@@ -120,21 +120,20 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     }
 
-    /* Main Page Title (e.g., "Our Love Stats Dashboard") */
-    .stApp > div > .main .block-container h1 { 
-        color: var(--accent-pink-strong) !important; 
-        font-weight: 600;
-        font-size: 2.0rem; 
-    }
-    /* All other headers (h2-h6), including st.subheader like "Status Breakdown:" */
+    /* Main Page Title (e.g., "Share Your Heart's Whispers...") AND ALL OTHER HEADERS */
+    .stApp > div > .main .block-container h1, /* Target st.header() */
     .stApp .main .block-container h2,
     .stApp .main .block-container h3, 
     .stApp .main .block-container h4,
     .stApp .main .block-container h5,
     .stApp .main .block-container h6 {
-        color: var(--text-dark) !important; /* Ensure subheaders are dark */
-        font-weight: 600;
+        color: var(--text-dark) !important; /* Make ALL headers dark for readability */
+        font-weight: 600 !important; /* Ensure font weight is applied */
     }
+    .stApp > div > .main .block-container h1 { 
+        font-size: 2.0rem !important; /* Ensure font size is applied */
+    }
+
 
     /* --- SIDEBAR STYLES --- */
     div[data-testid="stSidebar"] {
@@ -142,45 +141,56 @@ st.markdown("""
         border-right: 2px solid var(--accent-pink-light) !important;
         padding: 1rem !important;
     }
-    /* Sidebar main title */
-    div[data-testid="stSidebar"] h1 { 
+    div[data-testid="stSidebar"] h1 { /* Sidebar main title */
         color: var(--accent-pink-strong) !important; 
     }
-    /* ALL other text in sidebar: radio labels, captions, markdown paragraphs */
-    div[data-testid="stSidebar"] p, /* Catches markdown <p> tags like "Made with heaps..." and the emoji <p> */
+    div[data-testid="stSidebar"] p, 
     div[data-testid="stSidebar"] li,
-    div[data-testid="stSidebar"] label, /* General labels */
-    div[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p, /* More specific for markdown paragraphs */
+    div[data-testid="stSidebar"] label, 
+    div[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p, 
     div[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] li, 
-    div[data-testid="stSidebar"] div[data-testid="stRadio"] label span, /* Radio button option text */
-    div[data-testid="stSidebar"] div[data-testid="stRadio"] label small /* Radio captions */
+    div[data-testid="stSidebar"] div[data-testid="stRadio"] label span, 
+    div[data-testid="stSidebar"] div[data-testid="stRadio"] label small 
     {
         color: var(--text-dark) !important; 
         background-color: transparent !important; 
     }
-    /* Selected radio button option text (make it pop with accent color) */
     div[data-testid="stSidebar"] div[data-testid="stRadio"] input:checked + div span { 
         color: var(--accent-pink-strong) !important;
         font-weight: 600 !important;
     }
-    /* Hover effect for radio button text */
     div[data-testid="stSidebar"] div[data-testid="stRadio"] label:hover > div > span {
         color: var(--accent-pink-medium) !important; 
     }
 
 
-    /* --- FORM WIDGET LABEL STYLES (Main Content) --- */
-    .main .stTextInput label,
-    .main .stTextArea label,
-    .main .stDateInput label,
-    .main .stSelectbox label, 
-    .main .stForm label { 
+    /* --- FORM WIDGET LABEL STYLES (Main Content) - REVISED --- */
+    /* Target the label element which usually has data-testid="stWidgetLabel" 
+       and is a child of the widget's main div (e.g., data-testid="stTextInput") */
+    div[data-testid="stTextInput"] label[data-testid="stWidgetLabel"],
+    div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"],
+    div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"],
+    div[data-testid="stSelectbox"] label[data-testid="stWidgetLabel"] {
         color: var(--text-dark) !important; 
         font-weight: 500 !important;
         font-size: 0.95rem !important;
-        margin-bottom: 0.2rem !important; 
-        display: block !important;
+        margin-bottom: 0.3rem !important; /* Increased spacing a bit */
+        padding-top: 0.1rem; /* Add a little top padding */
+        display: block !important; 
     }
+
+    /* In case the actual text is nested inside a div/span within the label */
+    div[data-testid="stTextInput"] label[data-testid="stWidgetLabel"] div,
+    div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"] div,
+    div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"] div,
+    div[data-testid="stSelectbox"] label[data-testid="stWidgetLabel"] div,
+    div[data-testid="stTextInput"] label[data-testid="stWidgetLabel"] span,
+    div[data-testid="stTextArea"] label[data-testid="stWidgetLabel"] span,
+    div[data-testid="stDateInput"] label[data-testid="stWidgetLabel"] span,
+    div[data-testid="stSelectbox"] label[data-testid="stWidgetLabel"] span {
+        color: var(--text-dark) !important; /* Force dark text */
+    }
+
 
     /* --- INPUT WIDGET STYLES (Text, Text Area, Date) --- */
     .stTextInput input,
@@ -303,7 +313,6 @@ st.markdown("""
         padding: 1rem !important; 
         border: 1px solid var(--border-color) !important; 
     }
-    /* Text within stInfo inside chart area */
     div[data-testid="stVegaLiteChart"] div[data-testid="stInfo"],
     .stVegaLiteChart div[data-testid="stInfo"] {
         background-color: var(--bg-widget-hover) !important; 
@@ -336,7 +345,14 @@ st.markdown("""
     div[data-testid="stAlert"][data-baseweb="alert"][role="alert"][class*="st-emotion-cache-j6nsw4"] p { color: var(--warning-text) !important; }
     div[data-testid="stAlert"][data-baseweb="alert"][role="alert"][class*="st-emotion-cache-1wmy9hl"] { background-color: var(--error-bg) !important; color: var(--error-text) !important; border-color: var(--error-border) !important; }
     div[data-testid="stAlert"][data-baseweb="alert"][role="alert"][class*="st-emotion-cache-1wmy9hl"] p { color: var(--error-text) !important; }
-    .footer-text p { text-align: center; color: var(--text-medium) !important; font-size: 0.9rem; padding-top: 1rem; }
+    
+    /* --- FOOTER TEXT VISIBILITY FIX --- */
+    .footer-text p { 
+        text-align: center; 
+        color: var(--text-dark) !important; /* Force dark text for footer */
+        font-size: 0.9rem !important; 
+        padding-top: 1rem !important; 
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -488,4 +504,4 @@ elif app_mode == "📊 Our Love Stats":
 
 # --- Footer ---
 st.markdown("---")
-st.markdown("<div class='footer-text'><p>Remember Sai Keerthi, communication is the melody of our happy hearts. I love you more each day! ❤️, Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='footer-text'><p>Remember Sai Keerthi, communication is the melody of our happy hearts. I love you more each day! ❤️,Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
