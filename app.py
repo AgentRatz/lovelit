@@ -542,4 +542,4 @@ elif app_mode == "📊 Our Love Stats":
 
 # --- Footer ---
 st.markdown("---")
-st.markdown("<div class='footer-text'><p>Remember Sai Keerth, communication is the melody of our happy hearts. I love you more each day! ❤️,Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='footer-text'><p>Remember Sai Keerthi, communication is the melody of our happy hearts. I love you more each day! ❤️,Made By Rahul B Only for Sai Kee</p></div>", unsafe_allow_html=True)
